@@ -11,13 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Scarica feed Substack
+      - name: Scarica feed RSS Substack
         run: |
-          curl -s "https://terraefilmfest.substack.com/api/v1/posts?limit=50&offset=0" \
-            -H "Accept: application/json" \
-            -o raw-feed.json
+          curl -s -L \
+            -A "Mozilla/5.0" \
+            "https://terraefilmfest.substack.com/feed" \
+            -o raw-feed.xml
 
-      - name: Filtra post con tag news
+      - name: Converti RSS in JSON e filtra tag news
         run: |
           python3 filter.py
 
