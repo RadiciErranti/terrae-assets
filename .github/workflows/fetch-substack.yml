@@ -11,11 +11,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Scarica feed Substack e salva JSON
+      - name: Scarica feed Substack, filtra tag "news" e salva JSON
         run: |
-          curl -s "https://terraefilmfest.substack.com/api/v1/posts?limit=20&offset=0" \
+          curl -s "https://terraefilmfest.substack.com/api/v1/posts?limit=50&offset=0" \
             -H "Accept: application/json" \
-            -o substack-feed.json
+            | python3 -c "
+import json, sys
+posts = json.load(sys.stdin)
+filtered = [p for p in posts if any(
+    t.get('name','').lower() == 'news'
+    for t in (p.get('postTags') or [])
+)]
+print(json.dumps(filtered, ensure_ascii=False, indent=2))
+" > substack-feed.json
 
       - name: Commit e push se ci sono modifiche
         run: |
