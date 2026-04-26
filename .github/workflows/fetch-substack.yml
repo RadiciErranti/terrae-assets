@@ -13,11 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Scarica feed RSS Substack
+      - name: Scarica feed via rss2json
         run: |
-          curl -s -L \
-            -H "User-Agent: Mozilla/5.0" \
-            "https://terraefilmfest.substack.com/feed" \
+          curl -s "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fterraefilmfest.substack.com%2Ffeed&count=20" \
             -o substack-feed.json
 
       - name: Commit e push se ci sono modifiche
