@@ -2,58 +2,56 @@ import xml.etree.ElementTree as ET
 import json
 import re
 
-def clean_html(html):
+
+def clean(html):
     if not html:
         return ""
-    text = re.sub(r"<[^>]+>", " ", html)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text[:200] + "..." if len(text) > 200 else text
+    t = re.sub(r"<[^>]+>", " ", html)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t[:200] + "..." if len(t) > 200 else t
 
-def first_image(html):
+
+def img(html):
     if not html:
         return ""
     m = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', html, re.IGNORECASE)
     return m.group(1) if m else ""
 
-def format_date(date_str):
-    if not date_str:
+
+def fmtdate(s):
+    if not s:
         return ""
-    months = {"Jan":"01","Feb":"02","Mar":"03","Apr":"04","May":"05","Jun":"06",
-               "Jul":"07","Aug":"08","Sep":"09","Oct":"10","Nov":"11","Dec":"12"}
-    parts = date_str.strip().split()
-    if len(parts) >= 4:
-        day = parts[1].zfill(2)
-        mon = months.get(parts[2], "01")
-        year = parts[3]
-        return day + " · " + mon + " · " + year
-    return date_str
+    months = {
+        "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04",
+        "May": "05", "Jun": "06", "Jul": "07", "Aug": "08",
+        "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"
+    }
+    p = s.strip().split()
+    if len(p) >= 4:
+        return p[1].zfill(2) + " · " + months.get(p[2], "01") + " · " + p[3]
+    return s
+
 
 tree = ET.parse("raw-feed.xml")
-root = tree.getroot()
-channel = root.find("channel")
-items = channel.findall("item")
+items = tree.getroot().find("channel").findall("item")
 
 posts = []
 for item in items:
-    categories = [c.text.strip().lower() for c in item.findall("category") if c.text]
-    if "news" not in categories:
+    cats = [c.text.strip().lower() for c in item.findall("category") if c.text]
+    if "news" not in cats:
         continue
-    title    = (item.findtext("title") or "").strip()
-    link     = (item.findtext("link") or "").strip()
-    pub_date = item.findtext("pubDate") or ""
-    content  = item.findtext("{http://purl.org/rss/1.0/modules/content/}encoded") or item.findtext("description") or ""
-    image    = first_image(content)
-    excerpt  = clean_html(content)
+    ns = "http://purl.org/rss/1.0/modules/content/"
+    content = item.findtext("{" + ns + "}encoded") or item.findtext("description") or ""
     posts.append({
-        "title": title,
-        "link": link,
-        "pub_date": format_date(pub_date),
-        "cover_image": image,
-        "subtitle": excerpt,
-        "tag": "NEWS",
+        "title": (item.findtext("title") or "").strip(),
+        "link": (item.findtext("link") or "").strip(),
+        "pub_date": fmtdate(item.findtext("pubDate") or ""),
+        "cover_image": img(content),
+        "subtitle": clean(content),
+        "tag": "NEWS"
     })
 
-with open("substack-feed.json", "w") as f:
+with open("substack-feed.json", "w", encoding="utf-8") as f:
     json.dump(posts, f, ensure_ascii=False, indent=2)
 
-print("Salvati " + str(len(posts)) + " post con tag news.")
+print("Post con tag news: " + str(len(posts)))
