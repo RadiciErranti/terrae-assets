@@ -1,22 +1,25 @@
 name: Aggiorna feed Substack
- 
+
 on:
   schedule:
-    - cron: '0 * * * *'   # ogni ora
-  workflow_dispatch:        # eseguibile manualmente
- 
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
- 
-      - name: Scarica feed Substack e salva JSON
+
+      - name: Scarica feed RSS Substack
         run: |
-          curl -s "https://terraefilmfest.substack.com/api/v1/posts?limit=20&offset=0" \
-            -H "Accept: application/json" \
+          curl -s -L \
+            -H "User-Agent: Mozilla/5.0" \
+            "https://terraefilmfest.substack.com/feed" \
             -o substack-feed.json
- 
+
       - name: Commit e push se ci sono modifiche
         run: |
           git config user.name "github-actions[bot]"
@@ -24,4 +27,3 @@ jobs:
           git add substack-feed.json
           git diff --cached --quiet || git commit -m "chore: aggiorna feed Substack"
           git push
- 
