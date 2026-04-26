@@ -1,1 +1,51 @@
+name: Fetch Substack Feed
 
+on:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-feed:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install feedparser requests
+      
+      - name: Fetch and process Substack feed
+        run: python fetch_substack_feed.py
+      
+      - name: Check if file changed
+        id: check_changes
+        run: |
+          if git diff --quiet substack-feed.json; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes in substack-feed.json"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in substack-feed.json"
+          fi
+      
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add substack-feed.json
+          git commit -m "chore: update substack feed - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          git push
