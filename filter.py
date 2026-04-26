@@ -1,57 +1,35 @@
-import xml.etree.ElementTree as ET
-import json
-import re
+name: Aggiorna feed Substack
 
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
-def clean(html):
-    if not html:
-        return ""
-    t = re.sub(r"<[^>]+>", " ", html)
-    t = re.sub(r"\s+", " ", t).strip()
-    return t[:200] + "..." if len(t) > 200 else t
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Scarica RSS Substack
+        run: |
+          curl -s -L \
+            -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
+            -H "Accept-Language: it-IT,it;q=0.9,en;q=0.8" \
+            -H "Cache-Control: no-cache" \
+            "https://terraefilmfest.substack.com/feed" \
+            -o raw-feed.xml
+          echo "Primi 200 caratteri del file scaricato:"
+          head -c 200 raw-feed.xml
 
-def img(html):
-    if not html:
-        return ""
-    m = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', html, re.IGNORECASE)
-    return m.group(1) if m else ""
+      - name: Converti RSS in JSON
+        run: python3 filter.py
 
-
-def fmtdate(s):
-    if not s:
-        return ""
-    months = {
-        "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04",
-        "May": "05", "Jun": "06", "Jul": "07", "Aug": "08",
-        "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"
-    }
-    p = s.strip().split()
-    if len(p) >= 4:
-        return p[1].zfill(2) + " · " + months.get(p[2], "01") + " · " + p[3]
-    return s
-
-
-tree = ET.parse("raw-feed.xml")
-items = tree.getroot().find("channel").findall("item")
-
-posts = []
-for item in items:
-    cats = [c.text.strip().lower() for c in item.findall("category") if c.text]
-    if "news" not in cats:
-        continue
-    ns = "http://purl.org/rss/1.0/modules/content/"
-    content = item.findtext("{" + ns + "}encoded") or item.findtext("description") or ""
-    posts.append({
-        "title": (item.findtext("title") or "").strip(),
-        "link": (item.findtext("link") or "").strip(),
-        "pub_date": fmtdate(item.findtext("pubDate") or ""),
-        "cover_image": img(content),
-        "subtitle": clean(content),
-        "tag": "NEWS"
-    })
-
-with open("substack-feed.json", "w", encoding="utf-8") as f:
-    json.dump(posts, f, ensure_ascii=False, indent=2)
-
-print("Post con tag news: " + str(len(posts)))
+      - name: Commit e push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add substack-feed.json
+          git diff --cached --quiet || git commit -m "chore: aggiorna feed Substack"
+          git push
